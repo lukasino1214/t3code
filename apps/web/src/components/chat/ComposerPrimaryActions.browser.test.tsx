@@ -20,6 +20,8 @@ function setup() {
     compact: true,
     canOperateThread: true,
     pendingAction: null,
+    showPlanFollowUpPrompt: false,
+    promptHasText: false,
     isRunning: true,
     canInterrupt: true,
     canResume: false,
@@ -30,12 +32,13 @@ function setup() {
     hasSendableContent: false,
     onPreviousPendingQuestion: vi.fn(),
     onInterrupt: vi.fn(),
+    onImplementPlanInNewThread: vi.fn(),
     onResume: vi.fn(),
     onSubmitMessage: vi.fn(),
   } satisfies ComponentProps<typeof ComposerPrimaryActions>;
 }
 
-it.each(["resume", "draft", "question"] as const)(
+it.each(["resume", "draft", "question", "plan"] as const)(
   "keeps repeat Stop clicks from reaching the action that replaces it (%s)",
   async (mode) => {
     const props = setup();
@@ -81,11 +84,17 @@ it.each(["resume", "draft", "question"] as const)(
       view({
         isRunning: false,
         canInterrupt: false,
-        canResume: true,
+        canResume: mode !== "plan",
+        showPlanFollowUpPrompt: mode === "plan",
         hasSendableContent: mode === "draft",
       }),
     );
-    const action = { resume: "Resume thread", draft: "Submit message", question: "Submit" }[mode];
+    const action = {
+      resume: "Resume thread",
+      draft: "Submit message",
+      question: "Submit",
+      plan: "Implementation actions",
+    }[mode];
     expect(screen.getByRole("button", { name: "Stop generation" }).query()).toBeNull();
     expect(target()).toBe(screen.getByRole("button", { name: action, exact: true }).element());
     await act(() => {
@@ -96,8 +105,20 @@ it.each(["resume", "draft", "question"] as const)(
     expect(props.onResume).not.toHaveBeenCalled();
     expect(props.onSubmitMessage).not.toHaveBeenCalled();
     expect(submit).not.toHaveBeenCalled();
+    if (mode === "plan") {
+      expect(
+        screen.getByRole("menuitem", { name: "Implement in a new thread" }).query(),
+      ).toBeNull();
+    }
     await act(() => vi.advanceTimersByTime(1));
     await act(() => target()?.click());
+    if (mode === "plan") {
+      await expect
+        .element(screen.getByRole("menuitem", { name: "Implement in a new thread" }))
+        .toBeVisible();
+      expect(props.onImplementPlanInNewThread).not.toHaveBeenCalled();
+      return;
+    }
     expect(
       { resume: props.onResume, draft: props.onSubmitMessage, question: submit }[mode],
     ).toHaveBeenCalledTimes(1);

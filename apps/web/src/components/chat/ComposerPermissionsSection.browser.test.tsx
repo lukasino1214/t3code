@@ -1,4 +1,4 @@
-import type { RuntimeMode } from "@t3tools/contracts";
+import type { ProviderInteractionMode, RuntimeMode } from "@t3tools/contracts";
 import { type ReactNode, useRef, useState } from "react";
 import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -16,8 +16,45 @@ import {
 import { ComposerFooterModeControls, ComposerPermissionsSection } from "./ComposerFooterControls";
 import { ComposerPickerFooter } from "./ComposerModelEffort";
 import { runtimeModeConfig, runtimeModeOptions } from "./runtimeModeConfig";
+import { CompactComposerControlsMenu } from "./CompactComposerControlsMenu";
 
 const options = runtimeModeOptions.map((mode) => ({ mode, ...runtimeModeConfig[mode] }));
+
+function PlanningControls() {
+  const [mode, setMode] = useState<ProviderInteractionMode>("default");
+  const toggleMode = () => setMode((current) => (current === "plan" ? "default" : "plan"));
+  const props = {
+    showInteractionModeToggle: true,
+    interactionMode: mode,
+    onToggleInteractionMode: toggleMode,
+    runtimeMode: "full-access" as const,
+    runtimeModeOptions: options,
+    onRuntimeModeChange: () => {},
+  };
+  return (
+    <>
+      <ComposerFooterModeControls {...props} accessDisplay="hidden" />
+      <CompactComposerControlsMenu {...props} showPermissions={false} />
+    </>
+  );
+}
+
+it("keeps the planning choice when using the visible toggle and the overflow menu", async () => {
+  await using screen = await render(<PlanningControls />);
+  const build = screen.getByRole("button", { name: "Default mode. Click to enter plan mode" });
+  await userEvent.click(build);
+  await expect
+    .element(
+      screen.getByRole("button", { name: "Plan mode. Click to return to normal build mode" }),
+    )
+    .toHaveAttribute("aria-pressed", "true");
+  await userEvent.click(screen.getByRole("button", { name: "More composer controls" }));
+  await expect
+    .element(page.getByRole("menuitemradio", { name: "Plan", exact: true }))
+    .toHaveAttribute("aria-checked", "true");
+  await userEvent.click(page.getByRole("menuitemradio", { name: "Build", exact: true }));
+  await expect.element(build).toHaveAttribute("aria-pressed", "false");
+});
 
 // Mirrors the overflow menu, which holds the Permissions section.
 function OverflowMenu() {
@@ -163,6 +200,9 @@ function PermissionsChip() {
       </button>
       {mode === "full-access" ? null : (
         <ComposerFooterModeControls
+          showInteractionModeToggle={false}
+          interactionMode="default"
+          onToggleInteractionMode={() => {}}
           runtimeMode={mode}
           runtimeModeOptions={options}
           accessDisplay="label"

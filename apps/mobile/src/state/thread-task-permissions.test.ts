@@ -10,6 +10,7 @@ import {
   TurnItemId,
   type ModelSelection,
   type OrchestrationV2ThreadProjection,
+  type ProviderInteractionMode,
   type RuntimeMode,
   type ServerConfig,
 } from "@t3tools/contracts";
@@ -32,6 +33,7 @@ const state = vi.hoisted(() => ({
     attachments: [] as DraftComposerImageAttachment[],
     modelSelection: undefined as ModelSelection | undefined,
     runtimeMode: undefined as RuntimeMode | undefined,
+    interactionMode: undefined as ProviderInteractionMode | undefined,
   },
   serverConfig: null as ServerConfig | null,
   projection: null as OrchestrationV2ThreadProjection | null,
@@ -206,11 +208,13 @@ beforeEach(() => {
     attachments: [],
     modelSelection: undefined,
     runtimeMode: undefined,
+    interactionMode: undefined,
   };
   state.freshPending = false;
   state.compactModel = null;
   state.compactDueAt = "";
   state.thread.latestRun = null;
+  state.thread.interactionMode = "default";
   state.projection = null;
   state.serverConfig = {
     providers: [{ instanceId: "codex", driver: "codex", enabled: true }],
@@ -234,6 +238,32 @@ beforeEach(() => {
 });
 
 describe("mobile task permissions", () => {
+  it.each([
+    { connection: "connected", supported: true, draftMode: undefined, expected: "plan" },
+    { connection: "disconnected", supported: true, draftMode: "plan", expected: "plan" },
+    { connection: "connected", supported: true, draftMode: "default", expected: "default" },
+    { connection: "connected", supported: false, draftMode: "plan", expected: "default" },
+  ] as const)(
+    "snapshots $expected mode for a $connection send with planning supported=$supported and draft=$draftMode",
+    async ({ connection, supported, draftMode, expected }) => {
+      state.grantedEnvironments.add("secondary");
+      state.connectionState = connection;
+      state.thread.interactionMode = "plan";
+      state.draft.interactionMode = draftMode;
+      state.serverConfig = {
+        ...state.serverConfig!,
+        providers: state.serverConfig!.providers.map((provider) => ({
+          ...provider,
+          showInteractionModeToggle: supported,
+        })),
+      };
+      expect(await useThreadComposerState(NO_SIDE_CHATS).onSendMessage()).toBe("message");
+      expect(state.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ interactionMode: expected }),
+      );
+    },
+  );
+
   it("consumes an approval reply without queueing a parent message", async () => {
     state.grantedEnvironments.add("secondary");
     const composer = useThreadComposerState(NO_SIDE_CHATS);

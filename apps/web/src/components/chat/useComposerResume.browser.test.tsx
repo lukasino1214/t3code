@@ -58,6 +58,7 @@ function ResumeButton(props: {
     threadDetailLoading: false,
     activeEnvironmentUnavailable: false,
     runtimeMode: "full-access",
+    interactionMode: "plan",
     localCheckoutBranchMismatch: null,
     composerRef: props.composerRef,
     persistThreadSettingsForNextTurn: props.persistSettings,
@@ -89,5 +90,6 @@ it("continues on the resumed thread's model after the composer moves to another 
     threadId: threadA,
     manualContinuationOfRunId: "run:interrupted",
     modelSelection: threadAModel,
+    interactionMode: "plan",
   });
 });

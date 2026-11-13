@@ -121,6 +121,9 @@ function Harness(props: {
       compact={false}
       canOperateThread
       pendingAction={null}
+      showPlanFollowUpPrompt={false}
+      promptHasText={false}
+      onImplementPlanInNewThread={() => {}}
       isRunning={false}
       canInterrupt={false}
       isSendBusy={result.isSaving}

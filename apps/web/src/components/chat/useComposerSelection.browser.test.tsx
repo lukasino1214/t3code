@@ -78,6 +78,8 @@ function Picker(props: {
   thread: EnvironmentThreadShell;
   runtime: Parameters<typeof useComposerSelection>[0]["activeRuntime"];
   model?: string;
+  instanceId?: ProviderInstanceId;
+  providers?: ReadonlyArray<ServerProvider>;
 }) {
   const { onProviderModelSelectStable } = useComposerSelection({
     environmentId,
@@ -87,11 +89,13 @@ function Picker(props: {
     activeRuntime: props.runtime,
     activeProjectSettings: { settings: { newWorktreesStartFromOrigin: false } },
     settings: DEFAULT_UNIFIED_SETTINGS,
-    providerStatuses: providers,
+    providerStatuses: props.providers ?? providers,
     lockedProvider: null,
     supportsProviderSwitchingViaHandoff: true,
     multipleModelSelections: null,
     runtimeMode: "full-access",
+    interactionMode: "default",
+    interactionModeEnabled: true,
     isLocalDraftThread: false,
     canOverrideServerThreadEnvMode: false,
     setPendingServerThreadEnvModeEntry: () => {},
@@ -101,12 +105,42 @@ function Picker(props: {
   return (
     <button
       type="button"
-      onClick={() => onProviderModelSelectStable(cursor, props.model ?? stored.model)}
+      onClick={() =>
+        onProviderModelSelectStable(props.instanceId ?? cursor, props.model ?? stored.model)
+      }
     >
       Pick the model
     </button>
   );
 }
+
+it("clears Plan when switching to a provider without planning and keeps Build when switching back", async () => {
+  setup();
+  const thread = cursorThread("thread-switch-planning");
+  const ref = scopeThreadRef(environmentId, thread.id);
+  useComposerDraftStore.getState().setInteractionMode(ref, "plan");
+  const buildOnly: ServerProvider = {
+    ...providers[0]!,
+    instanceId: ProviderInstanceId.make("build-only"),
+    showInteractionModeToggle: false,
+    models: [{ slug: "test-model", name: "Test", isCustom: false, capabilities: {} }],
+  };
+  const available = [...providers, buildOnly];
+  await using screen = await render(
+    <Picker
+      thread={thread}
+      runtime={null}
+      providers={available}
+      instanceId={buildOnly.instanceId}
+      model="test-model"
+    />,
+  );
+  await page.getByRole("button", { name: "Pick the model" }).click();
+  expect(useComposerDraftStore.getState().getComposerDraft(ref)?.interactionMode).toBe("default");
+  await screen.rerender(<Picker thread={thread} runtime={null} providers={available} />);
+  await page.getByRole("button", { name: "Pick the model" }).click();
+  expect(useComposerDraftStore.getState().getComposerDraft(ref)?.interactionMode).toBe("default");
+});
 
 it("keeps a Cursor thread's stored model and options when the user re-picks its unavailable row", async () => {
   setup();

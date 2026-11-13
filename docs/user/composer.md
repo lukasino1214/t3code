@@ -12,6 +12,18 @@ becomes an attachment when inserting it would exceed the message limit. On a
 hardware keyboard, use `Cmd+Shift+V` on Apple devices or `Ctrl+Shift+V` elsewhere
 to keep a large paste editable in the composer instead.
 
+## Planning before implementation
+
+For providers that support it, choose **Plan** in the web or desktop composer,
+or pick `/plan` from the slash menu on any client. Build is the default mode.
+On web and desktop, Shift+Tab switches between Build and Plan when it
+isn't outdenting a list or code block. Choose **Build** or `/default` to switch back.
+
+On web and desktop, a ready plan offers **Refine** when you enter feedback and
+**Implement** when the composer is empty. Implement switches to Build mode;
+its menu also offers **Implement in a new thread**. On mobile, continue sending
+feedback in Plan mode, then use `/default` and ask the agent to implement it.
+
 ## Formatting
 
 The composer writes Markdown and shows it styled as you type. When your cursor
