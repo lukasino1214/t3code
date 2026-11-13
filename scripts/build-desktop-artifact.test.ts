@@ -824,46 +824,55 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     ),
   );
 
-  it.effect("reports missing Windows toolchain capabilities before building", () =>
-    Effect.scoped(
-      Effect.gen(function* () {
-        const fs = yield* FileSystem.FileSystem;
-        const path = yield* Path.Path;
-        const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-windows-preflight-" });
-        const pythonPath = path.join(tempDir, "python.exe");
-        yield* fs.writeFileString(pythonPath, "python");
-        const spawner = Layer.succeed(
-          ChildProcessSpawner.ChildProcessSpawner,
-          ChildProcessSpawner.make((command) => {
-            const childProcess = command as unknown as { readonly command: string };
-            const fails =
-              childProcess.command === "rustc" ||
-              childProcess.command === "powershell.exe" ||
-              childProcess.command === pythonPath;
-            return Effect.succeed(mockProcess(fails ? 1 : 0));
-          }),
-        );
-        const error = yield* preflightWindowsDesktopBuild({
-          arch: "x64",
-          bundlesWslRuntime: true,
-        }).pipe(
-          Effect.provide(
-            Layer.merge(
-              spawner,
-              ConfigProvider.layer(
-                ConfigProvider.fromEnv({ env: { npm_config_python: pythonPath } }),
+  it.effect.each([false, true])(
+    "reports missing Windows tools with Insiders available=%s",
+    (insidersAvailable) =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const fs = yield* FileSystem.FileSystem;
+          const path = yield* Path.Path;
+          const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-windows-preflight-" });
+          const pythonPath = path.join(tempDir, "python.exe");
+          yield* fs.writeFileString(pythonPath, "python");
+          const spawner = Layer.succeed(
+            ChildProcessSpawner.ChildProcessSpawner,
+            ChildProcessSpawner.make((command) => {
+              const childProcess = command as unknown as {
+                readonly command: string;
+                readonly args: ReadonlyArray<string>;
+              };
+              const fails =
+                childProcess.command === "rustc" ||
+                (childProcess.command === "powershell.exe" &&
+                  (!insidersAvailable || !childProcess.args.at(-1)?.includes("-prerelease"))) ||
+                childProcess.command === pythonPath;
+              return Effect.succeed(mockProcess(fails ? 1 : 0));
+            }),
+          );
+          const error = yield* preflightWindowsDesktopBuild({
+            arch: "x64",
+            bundlesWslRuntime: true,
+          }).pipe(
+            Effect.provide(
+              Layer.merge(
+                spawner,
+                ConfigProvider.layer(
+                  ConfigProvider.fromEnv({ env: { npm_config_python: pythonPath } }),
+                ),
               ),
             ),
-          ),
-          Effect.flip,
-        );
+            Effect.flip,
+          );
 
-        assert.instanceOf(error, WindowsDesktopBuildPrerequisitesMissingError);
-        assert.deepStrictEqual(error.missing, ["rust", "python", "msvc"]);
-        assert.equal(error.rustTarget, "x86_64-pc-windows-msvc");
-        assert.include(error.message, "Visual Studio Build Tools components");
-      }),
-    ),
+          assert.instanceOf(error, WindowsDesktopBuildPrerequisitesMissingError);
+          assert.deepStrictEqual(
+            error.missing,
+            insidersAvailable ? ["rust", "python"] : ["rust", "python", "msvc"],
+          );
+          assert.equal(error.rustTarget, "x86_64-pc-windows-msvc");
+          assert.include(error.message, "Visual Studio Build Tools components");
+        }),
+      ),
   );
 
   it.effect("does not require MSVC when reusing a prebuilt Windows resource monitor", () =>
@@ -958,12 +967,23 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
   // The fixture's t3code.exe is a text placeholder, not an executable. These
   // cases reach the native-load probe, so pin only that host-platform check to
   // Linux. Host-native paths and the real Windows tar/archive checks still run.
-  it.effect("validates every ASAR-unpacked native in the packaged Windows payload", () =>
+  it.effect("validates Windows payloads with prepared bytecode and ASAR natives", () =>
     Effect.scoped(
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const fixture = yield* makeWindowsPayloadFixture({ copyUnpackedNatives: true });
+        const preparedCacheDir = path.join(
+          fixture.packagedAppDir,
+          "resources/server-compile-cache",
+        );
+        yield* fs.makeDirectory(preparedCacheDir);
+        for (let index = 0; index < WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT; index++) {
+          yield* fs.writeFileString(
+            path.join(preparedCacheDir, index.toString(16).padStart(8, "0")),
+            "bytecode",
+          );
+        }
         const result = yield* validateWindowsPackagedPayload({
           stageDistDir: fixture.stageDistDir,
           appExecutableName: fixture.appExecutableName,
