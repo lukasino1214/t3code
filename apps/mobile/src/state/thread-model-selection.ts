@@ -2,8 +2,10 @@ import { runAtomCommand, squashAtomCommandFailure } from "@t3tools/client-runtim
 import { errorDisplayMessage } from "@t3tools/client-runtime/errors";
 import {
   AuthOrchestrationOperateScope,
+  DEFAULT_PROVIDER_INTERACTION_MODE,
   type EnvironmentId,
   type ModelSelection,
+  type ServerProvider,
   type ThreadId,
 } from "@t3tools/contracts";
 
@@ -23,11 +25,18 @@ import {
 export function selectThreadModel(
   ref: { readonly environmentId: EnvironmentId; readonly threadId: ThreadId },
   value: ModelSelection,
+  providers: ReadonlyArray<ServerProvider>,
 ): void {
   const threadKey = scopedThreadKey(ref.environmentId, ref.threadId);
   // Its own object, so an older reply for an equal pick cannot release this one.
   const modelSelection = { ...value };
-  updateComposerDraftSettings(threadKey, { modelSelection });
+  const provider = providers.find((candidate) => candidate.instanceId === value.instanceId);
+  updateComposerDraftSettings(threadKey, {
+    modelSelection,
+    ...(provider?.showInteractionModeToggle === false
+      ? { interactionMode: DEFAULT_PROVIDER_INTERACTION_MODE }
+      : {}),
+  });
   const thread = appAtomRegistry.get(environmentThreadShells.threadShellAtom(ref));
   // Another instance replaces the live session, which may hold an open question; that pick
   // still waits for a sent message.

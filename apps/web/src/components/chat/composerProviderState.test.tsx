@@ -124,14 +124,13 @@ describe("getComposerProviderState", () => {
         ]),
       ]),
       modelOptions: selections(["agent", "plan"]),
-      includePlanAgent: true,
     });
 
     expect(state.promptEffort).toBe("high");
     expect(state.modelOptionsForDispatch).toEqual(selections(["agent", "plan"]));
   });
 
-  it("drops the plan agent from dispatch unless it is included", () => {
+  it("drops the plan agent from dispatch when explicitly excluded", () => {
     const state = getComposerProviderState({
       provider: PROVIDER,
       model: MODEL,
@@ -142,6 +141,7 @@ describe("getComposerProviderState", () => {
         ]),
       ]),
       modelOptions: selections(["agent", "plan"]),
+      includePlanAgent: false,
     });
 
     expect(state.modelOptionsForDispatch).toEqual(selections(["agent", "build"]));

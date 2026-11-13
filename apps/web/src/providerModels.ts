@@ -88,7 +88,7 @@ export function getProviderModelCapabilities(
   models: ReadonlyArray<ServerProviderModel>,
   model: string | null | undefined,
   provider: ProviderDriverKind,
-  includePlanAgent = false,
+  includePlanAgent = true,
 ): ModelCapabilities {
   const slug = resolveSelectableModel(provider, model, models);
   const selectedModel = models.find((candidate) => candidate.slug === slug);

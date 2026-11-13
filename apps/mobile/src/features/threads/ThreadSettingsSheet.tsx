@@ -1539,7 +1539,7 @@ export function ExistingThreadSettingsRouteScreen({
         option.selection.model === modelSelection.model,
     ) ?? null;
   const updateModelSelection = (selection: ModelSelection) =>
-    selectThreadModel(route.params, selection);
+    selectThreadModel(route.params, selection, serverConfig?.providers ?? []);
 
   return (
     <ThreadSettingsPickerScreen

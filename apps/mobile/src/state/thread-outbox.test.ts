@@ -112,10 +112,11 @@ function queuedMessage(input: {
 }
 
 describe("thread outbox", () => {
-  it("retains structured context through a persisted offline queue round trip", () => {
+  it("retains structured context and plan mode through a persisted offline queue round trip", () => {
     const message: QueuedThreadMessage = {
       ...queuedMessage({ messageId: "context-message", createdAt: "2026-09-06T12:00:00.000Z" }),
       text: "[Build](t3-context://v1/terminal/build-output)",
+      interactionMode: "plan",
       context: {
         version: 1,
         records: [

@@ -32,6 +32,8 @@ import {
   derivePhase,
   findRevertCheckpoint,
   isLatestRunSettled,
+  findLatestProposedPlan,
+  hasActionableProposedPlan,
   selectHandoffImageResources,
   selectMessageImageResources,
   createMessageAttachmentPreviewProjector,
@@ -66,6 +68,29 @@ function streamingPlanArtifact(
 }
 
 describe("V2 session presentation", () => {
+  it("selects the latest run's proposed plan and respects its status", () => {
+    const fixture = makeStreamingWorkTimelineFixture("proposed_plan");
+    const latest = streamingPlanArtifact(fixture, "# Latest plan", "active");
+    const older = {
+      ...latest,
+      id: PlanId.make("older-plan"),
+      runId: RunId.make("older-run"),
+      markdown: "# Older plan",
+    };
+    const projection = { ...makeThreadProjectionFixture(), plans: [older, latest] };
+    const selected = findLatestProposedPlan(projection, fixture.runId);
+    expect(selected).toMatchObject({ id: latest.id, planMarkdown: "# Latest plan" });
+    expect(hasActionableProposedPlan(selected)).toBe(true);
+    for (const status of ["superseded", "completed"] as const) {
+      const settled = findLatestProposedPlan(
+        { ...projection, plans: [{ ...latest, status }] },
+        fixture.runId,
+      );
+      expect(hasActionableProposedPlan(settled)).toBe(false);
+    }
+    expect(findLatestProposedPlan(null, fixture.runId)).toBeNull();
+  });
+
   it("uses run status as the settlement boundary", () => {
     const runId = RunId.make("run-1");
     expect(

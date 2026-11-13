@@ -84,7 +84,7 @@ export function getComposerProviderState(input: ComposerProviderStateInput): Com
     models,
     modelOptions,
     promptInjectionState = "none",
-    includePlanAgent,
+    includePlanAgent = true,
   } = input;
   if (keepsUnavailableModelOptions(provider, model)) {
     const normalizedModel = normalizeModelSlug(model, provider);
