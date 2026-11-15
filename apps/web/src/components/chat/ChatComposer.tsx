@@ -258,7 +258,12 @@ import type { UnifiedSettings } from "@t3tools/contracts/settings";
 import { isVideoAttachment, type SessionPhase, type Thread } from "../../types";
 import { type ComposerPromptHistoryPosition } from "./composerPromptHistory";
 import { usePendingUserInputDraft } from "./usePendingThreadRequests";
-import type { LatestProposedPlanState, PendingApproval, PendingUserInput, TimelineEntry } from "../../session-logic";
+import type {
+  LatestProposedPlanState,
+  PendingApproval,
+  PendingUserInput,
+  TimelineEntry,
+} from "../../session-logic";
 import {
   resolveComposerDispatchMode,
   type ComposerDispatchMode,
